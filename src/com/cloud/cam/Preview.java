@@ -1,5 +1,6 @@
 package com.cloud.cam;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -10,6 +11,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ImageFormat;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
@@ -28,8 +30,7 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Toast;
 
-public class Preview extends SurfaceView implements SurfaceHolder.Callback,
-		SensorEventListener {
+public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 	private static String TAG = "Preview";
 	private SurfaceHolder mHolder;
 	private Camera mCamera;
@@ -96,6 +97,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback,
 			try {
 				mCamera = Camera.open();
 				mCamera.setPreviewDisplay(mHolder);
+				mCamera.setPreviewCallback(new StreamIt(isRecording));
 				mCamera.startPreview();
 				isPreview = true;
 			} catch (Exception e) {
@@ -105,14 +107,14 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback,
 	}
 
 	public void onPreviewFrame(byte[] data, Camera camera) {
-
+		Log.e(TAG, "=========on Preview frame");
 		// 刚刚拍照的文件名
-		if (isRecording) {
+		if (true) {
 			String fileName = "IMG_"
 					+ new SimpleDateFormat("yyyyMMdd_HHmmss")
 							.format(new Date()).toString() + ".jpg";
 			File sdRoot = Environment.getExternalStorageDirectory();
-			String dir = "/Camera/";
+			String dir = "/DCIM/";
 			File mkDir = new File(sdRoot, dir);
 			if (!mkDir.exists())
 				mkDir.mkdirs();
@@ -164,6 +166,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback,
 		try {
 			mCamera.setPreviewDisplay(holder);
 			mCamera.startPreview();
+			mCamera.setPreviewCallback(new StreamIt(isRecording));
 			isPreview = true;
 			this.setWillNotDraw(false);
 		} catch (IOException e) {
@@ -215,21 +218,9 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback,
 		}
 	}
 
-	@Override
-	public void onAccuracyChanged(Sensor sensor, int accuracy) {
-		// TODO Auto-generated method stub
 
-	}
 
-	@Override
-	public void onSensorChanged(SensorEvent event) {
-		// TODO Auto-generated method stub
-		double x = event.values[0];
-		double y = event.values[1];
-		double z = event.values[2];
-	}
-
-	private Toast showToast(Toast clear_toast, String message) {
+	public Toast showToast(Toast clear_toast, String message) {
 		class RotatedTextView extends View {
 			private String text = "";
 			private Paint paint = new Paint();
@@ -342,6 +333,48 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback,
 					}
 				};
 				mCamera.autoFocus(autoFocusCallback);
+			}
+		}
+	}
+}
+
+class StreamIt implements Camera.PreviewCallback {
+	private String TAG = "PreviewCallback";
+	private boolean isRecording;
+	public StreamIt(boolean isRecording){
+		this.isRecording = isRecording;
+	}
+	
+	
+	public void onPreviewFrame(byte[] data, Camera camera) {
+		Log.e(TAG, "=========on Preview frame");
+		// 刚刚拍照的文件名
+		if (true) {
+			Log.e(TAG, "=========on Preview frame func");
+			String fileName = "IMG_"
+					+ new SimpleDateFormat("yyyyMMdd_HHmmss")
+							.format(new Date()).toString() + ".jpg";
+			File sdRoot = Environment.getExternalStorageDirectory();
+			String dir = "/DCIM/";
+			File mkDir = new File(sdRoot, dir);
+			if (!mkDir.exists())
+				mkDir.mkdirs();
+			File pictureFile = new File(sdRoot, dir + fileName);
+			if (!pictureFile.exists()) {
+				try {
+					pictureFile.createNewFile();
+					Camera.Parameters parameters = camera.getParameters();
+					Size size = parameters.getPreviewSize();
+					YuvImage image = new YuvImage(data,
+							parameters.getPreviewFormat(), size.width,
+							size.height, null);
+					FileOutputStream filecon = new FileOutputStream(pictureFile);
+					image.compressToJpeg(
+							new Rect(0, 0, image.getWidth(), image.getHeight()),
+							90, filecon);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
